@@ -23,10 +23,21 @@ app.options("*", cors());
 app.use(express.json());
 
 /* ===============================
-   HEALTH CHECK
+   HEALTH CHECK - RAILWAY-FRIENDLY
 ================================ */
 app.get("/", (req, res) => {
-  res.status(200).json({
+  const accept = req.headers.accept || "";
+
+  // If browser requests HTML, send friendly page
+  if (accept.includes("text/html")) {
+    return res.send(`
+      <h1>✅ WaafiPay Backend Alive</h1>
+      <p>Use <code>/waafipay/confirm</code> for POST requests.</p>
+    `);
+  }
+
+  // Otherwise, respond with JSON for API clients
+  return res.json({
     status: "OK",
     message: "WaafiPay backend alive",
   });
@@ -93,7 +104,7 @@ app.post("/waafipay/confirm", async (req, res) => {
 });
 
 /* ===============================
-   CATCH-ALL ROUTE (OPTIONAL)
+   CATCH-ALL ROUTE (SAFE)
 ================================ */
 app.get("*", (req, res) => {
   res.status(404).json({ error: "Route not found, use / or /waafipay/confirm" });
