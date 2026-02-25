@@ -15,7 +15,6 @@ app.use(
   })
 );
 
-// Handle preflight requests explicitly
 app.options("*", cors());
 
 /* ===============================
@@ -65,9 +64,7 @@ app.post("/waafipay/confirm", async (req, res) => {
         apiUserId,
         apiKey,
         paymentMethod: "MWALLET_ACCOUNT",
-        payerInfo: {
-          accountNo: phone,
-        },
+        payerInfo: { accountNo: phone },
         transactionInfo: {
           referenceId,
           invoiceId: referenceId,
@@ -80,18 +77,14 @@ app.post("/waafipay/confirm", async (req, res) => {
 
     const response = await fetch("https://api.waafipay.net/asm", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
     const data = await response.json();
-
     return res.status(200).json(data);
   } catch (error) {
     console.error("WaafiPay Error:", error);
-
     return res.status(500).json({
       success: false,
       message: "WaafiPay request failed",
@@ -100,10 +93,16 @@ app.post("/waafipay/confirm", async (req, res) => {
 });
 
 /* ===============================
+   CATCH-ALL ROUTE (OPTIONAL)
+================================ */
+app.get("*", (req, res) => {
+  res.status(404).json({ error: "Route not found, use / or /waafipay/confirm" });
+});
+
+/* ===============================
    SERVER START
 ================================ */
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`✅ WaafiPay backend running on port ${PORT}`);
 });
