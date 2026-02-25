@@ -4,14 +4,16 @@ import cors from "cors";
 
 const app = express();
 
-/* ✅ CORS CONFIG — ONLY YOUR FRONTEND */
+/* 🔐 CORS — MUST BE FIRST */
 app.use(
   cors({
     origin: "https://vitimiinonline.netlify.app",
-    methods: ["POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
+    credentials: true,
   })
 );
+
+/* 🔐 Explicit preflight handler (THIS IS THE MISSING PART) */
+app.options("*", cors());
 
 app.use(express.json());
 
