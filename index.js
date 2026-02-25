@@ -4,28 +4,35 @@ import fetch from "node-fetch";
 const app = express();
 
 /* =========================
-   🔐 MANUAL CORS (FINAL FIX)
+   🚨 RAILWAY-SAFE CORS FIX
    ========================= */
 app.use((req, res, next) => {
-  res.header(
+  res.setHeader(
     "Access-Control-Allow-Origin",
     "https://vitimiinonline.netlify.app"
   );
-  res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  res.header("Access-Control-Max-Age", "86400");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204); // 🔥 THIS IS THE KEY
-  }
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "*"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET,POST,PUT,DELETE,OPTIONS"
+  );
+  res.setHeader("Access-Control-Max-Age", "86400");
 
   next();
+});
+
+/* 🔥 EXPLICIT OPTIONS HANDLER (THIS IS THE KEY) */
+app.options("*", (req, res) => {
+  res.sendStatus(204);
 });
 
 app.use(express.json());
 
 /* =========================
-   ✅ WaafiPay confirm route
+   WaafiPay confirm route
    ========================= */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
@@ -56,7 +63,7 @@ app.post("/waafipay/confirm", async (req, res) => {
 });
 
 /* =========================
-   🚀 Railway port
+   Railway port binding
    ========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
