@@ -4,68 +4,71 @@ import fetch from "node-fetch";
 const app = express();
 
 /* =========================
-   🚨 RAILWAY-SAFE CORS FIX
+   CORS (already confirmed working)
    ========================= */
 app.use((req, res, next) => {
   res.setHeader(
     "Access-Control-Allow-Origin",
     "https://vitimiinonline.netlify.app"
   );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "*"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET,POST,PUT,DELETE,OPTIONS"
-  );
-  res.setHeader("Access-Control-Max-Age", "86400");
-
+  res.setHeader("Access-Control-Allow-Headers", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   next();
 });
 
-/* 🔥 EXPLICIT OPTIONS HANDLER (THIS IS THE KEY) */
-app.options("*", (req, res) => {
-  res.sendStatus(204);
-});
-
+app.options("*", (_, res) => res.sendStatus(204));
 app.use(express.json());
 
 /* =========================
-   WaafiPay confirm route
+   WaafiPay Confirm
    ========================= */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
-    const payload = req.body;
+    console.log("Incoming payload:", req.body);
 
-    const url =
+    const waafiUrl =
       process.env.WAAFIPAY_ENV === "live"
         ? "https://api.waafipay.com/asm"
         : "https://sandbox.waafipay.com/asm";
 
-    const response = await fetch(url, {
+    const waafiResponse = await fetch(waafiUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(req.body),
     });
 
-    const data = await response.json();
+    const text = await waafiResponse.text();
+
+    console.log("WaafiPay raw response:", text);
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        status: "ERROR",
+        message: "Invalid response from WaafiPay",
+        raw: text,
+      });
+    }
+
     return res.status(200).json(data);
+
   } catch (err) {
-    console.error("WaafiPay error:", err);
+    console.error("Backend crash:", err);
     return res.status(500).json({
       status: "ERROR",
-      message: "Backend execution failed",
+      message: "Server crashed",
     });
   }
 });
 
 /* =========================
-   Railway port binding
+   Start server
    ========================= */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log("WaafiPay backend running on port", PORT);
-});
+app.listen(PORT, () =>
+  console.log("WaafiPay backend running on", PORT)
+);
