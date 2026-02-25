@@ -1,10 +1,21 @@
 import express from "express";
 import fetch from "node-fetch";
+import cors from "cors";
 
 const app = express();
+
+/* ✅ CORS CONFIG — ONLY YOUR FRONTEND */
+app.use(
+  cors({
+    origin: "https://vitimiinonline.netlify.app",
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
+
 app.use(express.json());
 
-// WaafiPay confirm endpoint
+/* ✅ WaafiPay confirm endpoint */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
     const payload = req.body;
@@ -33,6 +44,7 @@ app.post("/waafipay/confirm", async (req, res) => {
   }
 });
 
+/* ✅ Railway port handling */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log("WaafiPay backend running on port", PORT);
