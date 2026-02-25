@@ -1,45 +1,31 @@
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  // Allow only your Netlify site
-  if (origin === "https://vitimiinonline.netlify.app") {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-
-  // IMPORTANT: handle preflight immediately
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
-  next();
-});
 import express from "express";
+import cors from "cors";
 import fetch from "node-fetch";
 
 const app = express();
 
 /* =========================
-   CORS
+   CORS (MUST BE FIRST)
 ========================= */
-app.use((req, res, next) => {
-  res.setHeader(
-    "Access-Control-Allow-Origin",
-    "https://vitimiinonline.netlify.app"
-  );
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-  res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-  next();
-});
+app.use(
+  cors({
+    origin: "https://vitimiinonline.netlify.app",
+    methods: ["POST", "OPTIONS"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
 
-app.options("*", (_, res) => res.sendStatus(204));
 app.use(express.json());
 
 /* =========================
-   WaafiPay Confirm
+   TEST ENDPOINT (OPTIONAL)
+========================= */
+app.get("/", (_, res) => {
+  res.send("WaafiPay backend alive");
+});
+
+/* =========================
+   WAAFIPAY CONFIRM
 ========================= */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
@@ -54,38 +40,30 @@ app.post("/waafipay/confirm", async (req, res) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "MerchantUID": process.env.WAAFIPAY_MERCHANT_UID,
-        "ApiUserId": process.env.WAAFIPAY_API_USER_ID,
-        "ApiKey": process.env.WAAFIPAY_API_KEY,
+        MerchantUID: process.env.WAAFIPAY_MERCHANT_UID,
+        ApiUserId: process.env.WAAFIPAY_API_USER_ID,
+        ApiKey: process.env.WAAFIPAY_API_KEY,
       },
       body: JSON.stringify(req.body),
-      timeout: 15000,
     });
 
-    const raw = await waafiRes.text();
-    console.log("WaafiPay raw:", raw);
+    const text = await waafiRes.text();
+    console.log("WaafiPay raw:", text);
 
-    if (!raw) {
-      return res.status(502).json({
-        status: "ERROR",
-        message: "Empty response from WaafiPay",
-      });
-    }
-
-    const data = JSON.parse(raw);
-    return res.status(200).json(data);
-
+    return res.status(200).json(
+      text ? JSON.parse(text) : { status: "ERROR", message: "Empty response" }
+    );
   } catch (err) {
     console.error("Backend error:", err);
     return res.status(500).json({
       status: "ERROR",
-      message: err.message || "Server error",
+      message: err.message,
     });
   }
 });
 
 /* =========================
-   Start Server
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
