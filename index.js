@@ -5,7 +5,7 @@ import fetch from "node-fetch";
 const app = express();
 
 /* ===============================
-   CORS CONFIG (VERY IMPORTANT)
+   CORS CONFIG
 ================================ */
 app.use(
   cors({
@@ -24,7 +24,7 @@ app.options("*", cors());
 app.use(express.json());
 
 /* ===============================
-   HEALTH CHECK (FIXES Cannot GET /)
+   HEALTH CHECK
 ================================ */
 app.get("/", (req, res) => {
   res.status(200).json({
@@ -78,16 +78,13 @@ app.post("/waafipay/confirm", async (req, res) => {
       },
     };
 
-    const response = await fetch(
-      "https://api.waafipay.net/asm",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      }
-    );
+    const response = await fetch("https://api.waafipay.net/asm", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
     const data = await response.json();
 
