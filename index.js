@@ -4,68 +4,109 @@ import fetch from "node-fetch";
 
 const app = express();
 
-/* =========================
-   CORS (MUST BE FIRST)
-========================= */
+/* ===============================
+   CORS CONFIG (VERY IMPORTANT)
+================================ */
 app.use(
   cors({
     origin: "https://vitimiinonline.netlify.app",
-    methods: ["POST", "OPTIONS"],
+    methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type"],
   })
 );
 
+// Handle preflight requests explicitly
+app.options("*", cors());
+
+/* ===============================
+   BODY PARSER
+================================ */
 app.use(express.json());
 
-/* =========================
-   TEST ENDPOINT (OPTIONAL)
-========================= */
-app.get("/", (_, res) => {
-  res.send("WaafiPay backend alive");
+/* ===============================
+   HEALTH CHECK (FIXES Cannot GET /)
+================================ */
+app.get("/", (req, res) => {
+  res.status(200).json({
+    status: "OK",
+    message: "WaafiPay backend alive",
+  });
 });
 
-/* =========================
-   WAAFIPAY CONFIRM
-========================= */
+/* ===============================
+   WAAFI PAY CONFIRM ENDPOINT
+================================ */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
-    console.log("Incoming:", req.body);
+    const {
+      phone,
+      amount,
+      merchantUid,
+      apiUserId,
+      apiKey,
+      referenceId,
+    } = req.body;
 
-    const waafiUrl =
-      process.env.WAAFIPAY_ENV === "live"
-        ? "https://api.waafipay.com/asm"
-        : "https://sandbox.waafipay.com/asm";
+    if (!phone || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields",
+      });
+    }
 
-    const waafiRes = await fetch(waafiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        MerchantUID: process.env.WAAFIPAY_MERCHANT_UID,
-        ApiUserId: process.env.WAAFIPAY_API_USER_ID,
-        ApiKey: process.env.WAAFIPAY_API_KEY,
+    const payload = {
+      schemaVersion: "1.0",
+      requestId: Date.now().toString(),
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+      channelName: "WEB",
+      serviceName: "API_PURCHASE",
+      serviceParams: {
+        merchantUid,
+        apiUserId,
+        apiKey,
+        paymentMethod: "MWALLET_ACCOUNT",
+        payerInfo: {
+          accountNo: phone,
+        },
+        transactionInfo: {
+          referenceId,
+          invoiceId: referenceId,
+          amount,
+          currency: "USD",
+          description: "Order payment",
+        },
       },
-      body: JSON.stringify(req.body),
-    });
+    };
 
-    const text = await waafiRes.text();
-    console.log("WaafiPay raw:", text);
-
-    return res.status(200).json(
-      text ? JSON.parse(text) : { status: "ERROR", message: "Empty response" }
+    const response = await fetch(
+      "https://api.waafipay.net/asm",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
     );
-  } catch (err) {
-    console.error("Backend error:", err);
+
+    const data = await response.json();
+
+    return res.status(200).json(data);
+  } catch (error) {
+    console.error("WaafiPay Error:", error);
+
     return res.status(500).json({
-      status: "ERROR",
-      message: err.message,
+      success: false,
+      message: "WaafiPay request failed",
     });
   }
 });
 
-/* =========================
-   START SERVER
-========================= */
+/* ===============================
+   SERVER START
+================================ */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log("WaafiPay backend running on port", PORT)
-);
+
+app.listen(PORT, () => {
+  console.log(`✅ WaafiPay backend running on port ${PORT}`);
+});
