@@ -1,3 +1,22 @@
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Allow only your Netlify site
+  if (origin === "https://vitimiinonline.netlify.app") {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+
+  // IMPORTANT: handle preflight immediately
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 import express from "express";
 import fetch from "node-fetch";
 
