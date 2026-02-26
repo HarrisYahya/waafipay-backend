@@ -1,119 +1,80 @@
 import express from "express";
-import cors from "cors";
 import fetch from "node-fetch";
 
 const app = express();
-
-/* ===============================
-   CORS CONFIG
-================================ */
-app.use(
-  cors({
-    origin: "https://vitimiinonline.netlify.app",
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
-
-app.options("*", cors());
-
-/* ===============================
-   BODY PARSER
-================================ */
 app.use(express.json());
 
-/* ===============================
-   HEALTH CHECK - RAILWAY-FRIENDLY
-================================ */
 app.get("/", (req, res) => {
-  const accept = req.headers.accept || "";
-
-  // If browser requests HTML, send friendly page
-  if (accept.includes("text/html")) {
-    return res.send(`
-      <h1>✅ WaafiPay Backend Alive</h1>
-      <p>Use <code>/waafipay/confirm</code> for POST requests.</p>
-    `);
-  }
-
-  // Otherwise, respond with JSON for API clients
-  return res.json({
-    status: "OK",
-    message: "WaafiPay backend alive",
-  });
+  res.send("WaafiPay backend alive ✅");
 });
 
-/* ===============================
-   WAAFI PAY CONFIRM ENDPOINT
-================================ */
 app.post("/waafipay/confirm", async (req, res) => {
   try {
     const {
       phone,
-      amount,
-      merchantUid,
-      apiUserId,
-      apiKey,
-      referenceId,
+      total,
+      items
     } = req.body;
 
-    if (!phone || !amount) {
+    if (!/^252\d{9}$/.test(phone)) {
       return res.status(400).json({
-        success: false,
-        message: "Missing required fields",
+        status: "ERROR",
+        message: "Invalid phone format",
       });
     }
 
     const payload = {
       schemaVersion: "1.0",
       requestId: Date.now().toString(),
-      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+      timestamp: new Date().toISOString(),
       channelName: "WEB",
       serviceName: "API_PURCHASE",
       serviceParams: {
-        merchantUid,
-        apiUserId,
-        apiKey,
+        merchantUid: process.env.WAAFIPAY_MERCHANT_UID,
+        apiUserId: process.env.WAAFIPAY_API_USER_ID,
+        apiKey: process.env.WAAFIPAY_API_KEY,
         paymentMethod: "MWALLET_ACCOUNT",
         payerInfo: { accountNo: phone },
         transactionInfo: {
-          referenceId,
-          invoiceId: referenceId,
-          amount,
+          referenceId: `ORDER-${Date.now()}`,
+          invoiceId: `INV-${Date.now()}`,
+          amount: total,
           currency: "USD",
-          description: "Order payment",
+          description: "Vitmiin Order Payment",
+          items: items.map(i => ({
+            itemId: i.id,
+            description: i.title,
+            quantity: i.qty,
+            price: i.price,
+          })),
         },
       },
     };
 
-    const response = await fetch("https://api.waafipay.net/asm", {
+    const waafiUrl =
+      process.env.WAAFIPAY_ENV === "live"
+        ? "https://api.waafipay.net/asm"
+        : "https://sandbox.waafipay.net/asm";
+
+    const r = await fetch(waafiUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
-    return res.status(200).json(data);
-  } catch (error) {
-    console.error("WaafiPay Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "WaafiPay request failed",
-    });
+    const result = await r.json();
+
+    if (result.responseCode !== "2001") {
+      return res.status(400).json({ status: "ERROR", waafipay: result });
+    }
+
+    res.json({ status: "SUCCESS", waafipay: result });
+  } catch (e) {
+    res.status(500).json({ status: "ERROR", message: "Server error" });
   }
 });
 
-/* ===============================
-   CATCH-ALL ROUTE (SAFE)
-================================ */
-app.get("*", (req, res) => {
-  res.status(404).json({ error: "Route not found, use / or /waafipay/confirm" });
-});
-
-/* ===============================
-   SERVER START
-================================ */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`✅ WaafiPay backend running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log("WaafiPay backend running on", PORT)
+);
