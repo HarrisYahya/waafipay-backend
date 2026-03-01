@@ -66,35 +66,34 @@ app.post("/waafipay/confirm", async (req, res) => {
     const now = Date.now().toString();
 
     const payload = {
-      schemaVersion: "1.0",
-      requestId: now,
-      timestamp: new Date().toISOString(),
-      channelName: "WEB",
-      serviceName: "API_PURCHASE",
-      serviceParams: {
-        merchantUid: process.env.WAAFIPAY_MERCHANT_UID,
-        apiUserId: process.env.WAAFIPAY_API_USER_ID,
-        apiKey: process.env.WAAFIPAY_API_KEY,
-        paymentMethod: "MWALLET_ACCOUNT",
-        payerInfo: {
-          accountNo: phone,
-        },
-        transactionInfo: {
-          referenceId: `ORDER-${now}`,
-          invoiceId: `INV-${now}`,
-          amount: total,
-          currency: "SOS", // ⚡ LIVE currency fix
-          description: "Vitmiin Order Payment",
-          items: items.map((i) => ({
-            itemId: i.id,
-            description: i.title,
-            quantity: i.qty,
-            price: i.price,
-          })),
-        },
-      },
-    };
-
+  schemaVersion: "1.0",
+  requestId: now,
+  timestamp: new Date().toISOString(),
+  channelName: "WEB",
+  serviceName: "API_PURCHASE",
+  serviceParams: {
+    merchantUid: process.env.WAAFIPAY_MERCHANT_UID || "",
+    apiUserId: process.env.WAAFIPAY_API_USER_ID || "",
+    apiKey: process.env.WAAFIPAY_API_KEY || "",
+    paymentMethod: "MWALLET_ACCOUNT",
+    payerInfo: {
+      accountNo: phone,
+    },
+    transactionInfo: {
+      referenceId: `ORDER-${now}`,
+      invoiceId: `INV-${now}`,
+      amount: total,
+      currency: "SOS",
+      description: "Vitmiin Order Payment",
+      items: items.map((i) => ({
+        itemId: i.id,
+        description: i.title,
+        quantity: i.qty,
+        price: i.price,
+      })),
+    },
+  },
+};
     const waafiUrl =
       process.env.WAAFIPAY_ENV === "live"
         ? "https://api.waafipay.net/asm"
