@@ -1,19 +1,26 @@
 import express from "express";
 import fetch from "node-fetch";
-import cors from "cors";
 
 const app = express();
 
 /* =========================
-   MIDDLEWARE (SAFE)
+   CORS MIDDLEWARE (FULLY FIXED)
 ========================= */
-app.use(
-  cors({
-    origin: "*",
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); // allow all origins
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept"
+  );
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  next();
+});
 
 app.use(express.json());
 
@@ -47,7 +54,7 @@ app.post("/waafipay/confirm", async (req, res) => {
       });
     }
 
-    // 🔍 ENV CHECK (LOG ONLY – SAFE)
+    // 🔍 ENV CHECK (LOG ONLY)
     console.log("ENV CHECK", {
       env: process.env.WAAFIPAY_ENV,
       merchant: !!process.env.WAAFIPAY_MERCHANT_UID,
@@ -55,7 +62,7 @@ app.post("/waafipay/confirm", async (req, res) => {
       key: !!process.env.WAAFIPAY_API_KEY,
     });
 
-    // 🔒 SINGLE TIMESTAMP FOR ALL IDS
+    // 🔒 SINGLE TIMESTAMP FOR ALL IDs
     const now = Date.now().toString();
 
     const payload = {
@@ -124,9 +131,9 @@ app.post("/waafipay/confirm", async (req, res) => {
 });
 
 /* =========================
-   START SERVER (RAILWAY SAFE)
+   START SERVER
 ========================= */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () =>
-  console.log("WaafiPay backend running on port", PORT)
+  console.log(`WaafiPay backend running on port ${PORT}`)
 );
