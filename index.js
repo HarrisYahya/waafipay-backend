@@ -7,11 +7,13 @@ const app = express();
 /* =========================
    MIDDLEWARE (SAFE)
 ========================= */
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST"],
-  allowedHeaders: ["Content-Type"],
-}));
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST"],
+    allowedHeaders: ["Content-Type"],
+  })
+);
 
 app.use(express.json());
 
@@ -37,7 +39,7 @@ app.post("/waafipay/confirm", async (req, res) => {
       });
     }
 
-    // Phone validation (UNCHANGED)
+    // Phone validation
     if (!/^252\d{9}$/.test(phone)) {
       return res.status(400).json({
         status: "ERROR",
@@ -53,9 +55,12 @@ app.post("/waafipay/confirm", async (req, res) => {
       key: !!process.env.WAAFIPAY_API_KEY,
     });
 
+    // 🔒 SINGLE TIMESTAMP FOR ALL IDS
+    const now = Date.now().toString();
+
     const payload = {
       schemaVersion: "1.0",
-      requestId: Date.now().toString(),
+      requestId: now,
       timestamp: new Date().toISOString(),
       channelName: "WEB",
       serviceName: "API_PURCHASE",
@@ -68,10 +73,10 @@ app.post("/waafipay/confirm", async (req, res) => {
           accountNo: phone,
         },
         transactionInfo: {
-          referenceId: `ORDER-${Date.now()}`,
-          invoiceId: `INV-${Date.now()}`,
+          referenceId: `ORDER-${now}`,
+          invoiceId: `INV-${now}`,
           amount: total,
-          currency: "USD",
+          currency: "SOS", // ⚡ LIVE currency fix
           description: "Vitmiin Order Payment",
           items: items.map((i) => ({
             itemId: i.id,
@@ -97,9 +102,10 @@ app.post("/waafipay/confirm", async (req, res) => {
     const result = await r.json();
 
     if (result.responseCode !== "2001") {
-      console.error("WaafiPay error:", result);
+      console.error("WaafiPay error:", JSON.stringify(result, null, 2));
       return res.status(400).json({
         status: "ERROR",
+        message: result.responseMsg || "WaafiPay rejected transaction",
         waafipay: result,
       });
     }
